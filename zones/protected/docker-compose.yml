@@ -1,0 +1,27 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: protected-redis
+    hostname: protected-redis
+    networks:
+      - protected_net
+    volumes:
+      - redis_data:/data
+
+  probe:
+    build: ./probe
+    container_name: protected-probe
+    hostname: protected-probe
+    networks:
+      - protected_net
+    environment:
+      - ZONE_NAME=protected
+      - PORT=3000
+
+volumes:
+  redis_data:
+
+networks:
+  protected_net:
+    external: true
+    name: testbed_protected_net

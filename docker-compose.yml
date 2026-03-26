@@ -1,0 +1,24 @@
+# Root compose - defines shared external networks
+# Each zone connects to these networks via their own compose files
+
+networks:
+  public_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.10.0/24
+    internal: false
+
+  service_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.20.0/24
+    internal: true
+
+  protected_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.30.0/24
+    internal: true

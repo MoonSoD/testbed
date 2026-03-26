@@ -1,0 +1,33 @@
+services:
+  nginx:
+    build: ./nginx
+    ports:
+      - "8888:80"
+    networks:
+      - public_net
+      - service_net
+    environment:
+      - SERVICE_API_HOST=service-api
+      - SERVICE_API_PORT=5001
+      - PROBE_HOST=public-probe
+      - PROBE_PORT=3000
+    depends_on:
+      - probe
+
+  probe:
+    build: ./probe
+    container_name: public-probe
+    hostname: public-probe
+    networks:
+      - public_net
+    environment:
+      - ZONE_NAME=public
+      - PORT=3000
+
+networks:
+  public_net:
+    external: true
+    name: testbed_public_net
+  service_net:
+    external: true
+    name: testbed_service_net

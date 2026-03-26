@@ -1,0 +1,25 @@
+# Generated/Runtime files
+logs/
+*.log
+*.pcap
+*.pcapng
+
+# Docker
+.docker/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/

@@ -1,0 +1,33 @@
+services:
+  api:
+    build: ./api
+    container_name: service-api
+    hostname: service-api
+    networks:
+      - service_net
+      - protected_net
+    environment:
+      - REDIS_HOST=protected-redis
+      - REDIS_PORT=6379
+      - PROBE_HOST=service-probe
+      - PROBE_PORT=3000
+    depends_on:
+      - probe
+
+  probe:
+    build: ./probe
+    container_name: service-probe
+    hostname: service-probe
+    networks:
+      - service_net
+    environment:
+      - ZONE_NAME=service
+      - PORT=3000
+
+networks:
+  service_net:
+    external: true
+    name: testbed_service_net
+  protected_net:
+    external: true
+    name: testbed_protected_net
