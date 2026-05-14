@@ -1,10 +1,16 @@
 services:
   redis:
-    image: redis:7-alpine
+    build: ./redis
     container_name: protected-redis
     hostname: protected-redis
     networks:
-      - protected_net
+      protected_net:
+        ipv4_address: ${PROTECTED_REDIS_IP}
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - SERVICE_SUBNET=${SERVICE_SUBNET}
+      - SERVICE_PROTECTED_FW_PROTECTED_IP=${SERVICE_PROTECTED_FW_PROTECTED_IP}
     volumes:
       - redis_data:/data
 
@@ -13,7 +19,12 @@ services:
     container_name: protected-probe
     hostname: protected-probe
     networks:
-      - protected_net
+      protected_net:
+        ipv4_address: ${PROTECTED_PROBE_IP}
+    cap_add:
+      - NET_ADMIN
+    command: >
+      sh -c "ip route replace ${SERVICE_SUBNET} via ${SERVICE_PROTECTED_FW_PROTECTED_IP} && npm start"
     environment:
       - ZONE_NAME=protected
       - PORT=3000
@@ -24,4 +35,4 @@ volumes:
 networks:
   protected_net:
     external: true
-    name: testbed_protected_net
+    name: ${PROTECTED_NET_NAME}

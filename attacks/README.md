@@ -1,23 +1,25 @@
-# Attack Testing from Kali Linux
+# Demonstration Tasks from Kali
 
-## Port Scan
+The official attack origin is the `kali-attacker` container on `public_net` at `172.20.10.50`.
 
-```bash
-# From Kali, scan the testbed host
-nmap -p 8888,5001,6379 <testbed-ip>
-
-# Expected: Only 8888 open
-```
-
-## Web Enumeration
+Use the fixed demo runner instead of ad-hoc exploit chains:
 
 ```bash
-curl http://<testbed-ip>:8888
-curl http://<testbed-ip>:8888/api/status
+./demo.sh task1
+./demo.sh task2
+./demo.sh task3
+./demo.sh task4
+./demo.sh all
 ```
 
-## Key Points
+## Manual Examples
 
-- Port 8888 is the only entry point
-- Internal zones (5001, 6379) not reachable from outside
-- Network segmentation enforced by Docker
+```bash
+docker exec kali-attacker nmap -Pn -p 80,5001 172.20.10.10 172.20.20.10
+docker exec kali-attacker curl -s --connect-timeout 2 http://172.20.20.10:5001/health
+docker exec kali-attacker sh -lc 'echo PING | nc -w1 172.20.30.10 6379 || true'
+```
+
+Expected behavior changes with `./scenario.sh baseline`, `./scenario.sh service-open`, `./scenario.sh data-open`, and `./scenario.sh hardened`.
+
+This implementation is service-level and benign. It demonstrates routing and firewall policy changes without adding exploit chains.

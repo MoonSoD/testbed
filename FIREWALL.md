@@ -1,49 +1,43 @@
-# Firewall vs Docker Networks
+# Firewall and Routed Boundaries
 
 ## Current Setup
 
-We use **Docker networks** for isolation, not iptables:
+This testbed uses Docker networks as subnet wiring and uses dedicated firewall/router modules as the security boundary.
 
-- Containers on different networks cannot communicate
-- No route between subnets
-- Kernel drops packets automatically
+Only firewall/router boundary containers are multi-homed. Normal services live in one zone. Cross-zone routes point at boundary modules. `iptables` controls which directional flows are allowed.
 
-## Do You Need Firewall Rules?
+## Boundary Defaults
 
-**No**, for this testbed. Docker networks provide sufficient isolation.
+Each firewall/router starts with:
 
-**Yes**, if you want:
-- Port-level filtering (only allow port 5001, block others)
-- Misconfiguration protection
-- Audit logs
-- Defense in depth
-
-## How It Works
-
-### Without Firewall
-```
-Same network = can communicate on any port
-```
-
-### With Firewall (iptables)
-```
-iptables -A FORWARD -p tcp --dport 5001 -j ACCEPT
-iptables -A FORWARD -p tcp --dport 22 -j DROP
-```
-
-## On macOS
-
-iptables runs inside Docker's Linux VM, not on macOS. It cannot break your Mac.
-
-To use iptables, run the testbed on a Linux VM:
 ```bash
-# Using multipass
-multipass launch --name testbed-vm
-multipass shell testbed-vm
-# Install Docker, clone repo, then:
-sudo ./firewall/setup.sh setup
+iptables -F
+iptables -P FORWARD DROP
+iptables -A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 ```
 
-## Recommendation
+This means new cross-zone traffic is denied unless a scenario explicitly permits it.
 
-Use Docker networks only for this learning testbed. Add iptables for production environments.
+## Scenario Rules
+
+`service-open` allows public-to-service API traffic:
+
+```bash
+iptables -A FORWARD -s 172.20.10.0/24 -d 172.20.20.10 -p tcp --dport 5001 -j ACCEPT
+```
+
+`data-open` also allows service API-to-protected Redis traffic:
+
+```bash
+iptables -A FORWARD -s 172.20.20.10 -d 172.20.30.10 -p tcp --dport 6379 -j ACCEPT
+```
+
+Use `./scenario.sh status` to inspect the active `FORWARD` chains.
+
+## macOS and Docker Desktop
+
+The firewall commands run inside Linux containers managed by Docker Desktop or OrbStack. The host macOS firewall is not modified.
+
+## Why Not Docker Isolation Alone?
+
+The demonstrator models explicit routers and firewall policy. Docker networks provide convenient subnets, but the intended lesson is that routed boundaries and rules control cross-zone access.

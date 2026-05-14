@@ -3,22 +3,22 @@
 
 networks:
   public_net:
+    name: ${PUBLIC_NET_NAME}
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.10.0/24
-    internal: false
+        - subnet: ${PUBLIC_SUBNET}
 
   service_net:
+    name: ${SERVICE_NET_NAME}
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.20.0/24
-    internal: true
+        - subnet: ${SERVICE_SUBNET}
 
   protected_net:
+    name: ${PROTECTED_NET_NAME}
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.30.0/24
-    internal: true
+        - subnet: ${PROTECTED_SUBNET}

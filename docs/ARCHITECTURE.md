@@ -2,165 +2,55 @@
 
 ## Overview
 
-This testbed simulates a multi-zone network architecture for cybersecurity testing, implementing defense-in-depth principles with network segmentation.
+This testbed demonstrates routed segmentation across public, service, and protected zones. Docker bridge networks represent subnets, while firewall/router boundary containers enforce cross-zone access with `iptables`.
 
-## Architecture Diagram
+Only firewall/router boundary containers are multi-homed. Normal services live in one zone. Cross-zone routes point at boundary modules. `iptables` controls which directional flows are allowed.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Host Machine                           │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Docker Networks                         │   │
-│  │                                                      │   │
-│  │   ┌──────────────┐    ┌──────────────┐             │   │
-│  │   │  public_net  │    │ service_net  │             │   │
-│  │   │ 172.20.10/24 │    │ 172.20.20/24 │             │   │
-│  │   └──────┬───────┘    └──────┬───────┘             │   │
-│  │          │                   │                      │   │
-│  │   ┌──────▼───────┐    ┌──────▼───────┐             │   │
-│  │   │              │    │              │             │   │
-│  │   │ Public Zone  │◄──►│ Service Zone │             │   │
-│  │   │   (nginx)    │    │  (Node.js)   │             │   │
-│  │   │   Port 80    │    │   Port 5001  │             │   │
-│  │   └──────┬───────┘    └──────┬───────┘             │   │
-│  │          │                   │                      │   │
-│  │          │            ┌──────▼───────┐              │   │
-│  │          │            │ protected_net│              │   │
-│  │          │            │ 172.20.30/24 │              │   │
-│  │          │            └──────┬───────┘              │   │
-│  │          │                   │                      │   │
-│  │          │            ┌──────▼───────┐              │   │
-│  │          │            │              │              │   │
-│  │          │            │Protected Zone│              │   │
-│  │          │            │   (Redis)    │              │   │
-│  │          │            │   Port 6379  │              │   │
-│  │          │            └──────────────┘              │   │
-│  │          │                                          │   │
-│  └──────────┼──────────────────────────────────────────┘   │
-│             │                                               │
-└─────────────┼───────────────────────────────────────────────┘
-              │
-              │ Port 8888
-              ▼
-    ┌─────────────────────┐
-    │   Kali Linux VM     │
-    │  (Attack Testing)   │
-    └─────────────────────┘
+## Logical Topology
+
+```text
+kali-attacker 172.20.10.50
+  |
+public_net 172.20.10.0/24
+  | public-service-fw: 172.20.10.254 / 172.20.20.254
+service_net 172.20.20.0/24
+  | service-protected-fw: 172.20.20.253 / 172.20.30.254
+protected_net 172.20.30.0/24
 ```
 
-## Security Zones
+## Zones
 
-### 1. Public Zone (DMZ)
-- **Purpose**: Externally accessible services
-- **Technology**: Nginx web server
-- **Network**: `public_net` (172.20.10.0/24)
-- **Exposed Port**: 80 (mapped to host 8888)
-- **Security Profile**: High exposure, minimal trust
+| Zone | Subnet | Services |
+|------|--------|----------|
+| Public | `172.20.10.0/24` | Nginx `172.20.10.10`, probe `172.20.10.11`, Kali `172.20.10.50` |
+| Service | `172.20.20.0/24` | API `172.20.20.10`, probe `172.20.20.11` |
+| Protected | `172.20.30.0/24` | Redis `172.20.30.10`, probe `172.20.30.11` |
 
-**Services:**
-- **nginx**: Reverse proxy, routes `/api/` to service zone
-- **probe**: Health check API (port 3000)
+## Boundaries
 
-### 2. Service Zone (Application Layer)
-- **Purpose**: Internal API services
-- **Technology**: Node.js with TypeScript (Express.js)
-- **Network**: `service_net` (172.20.20.0/24)
-- **Port**: 5001
-- **Security Profile**: Medium trust, internal access only
+| Boundary | Interfaces | Role |
+|----------|------------|------|
+| `public-service-fw` | `172.20.10.254`, `172.20.20.254` | Routes and filters public-to-service traffic |
+| `service-protected-fw` | `172.20.20.253`, `172.20.30.254` | Routes and filters service-to-protected traffic |
 
-**Services:**
-- **api**: Main API server with Redis connectivity
-- **probe**: Health check API (port 3000)
+Each boundary enables IPv4 forwarding and starts with default-deny `FORWARD` policy plus established/related return traffic.
 
-**API Endpoints:**
-- `GET /health` - Health check
-- `GET /status` - Zone status
-- `GET /data` - Retrieve data from Protected Zone
+## Access Model
 
-### 3. Protected Zone (Data Layer)
-- **Purpose**: Sensitive data storage
-- **Technology**: Redis 7
-- **Network**: `protected_net` (172.20.30.0/24)
-- **Port**: 6379
-- **Security Profile**: High trust, restricted access
-
-**Services:**
-- **redis**: Data store with persistence
-- **probe**: Health check API (port 3000)
-
-## Network Segmentation
-
-### Communication Matrix
-
-| Source → Destination | Status | Notes |
-|---------------------|--------|-------|
-| External → Public Zone | ✅ ALLOWED | Port 8888 only |
-| External → Service Zone | ❌ DENIED | Network isolation |
-| External → Protected Zone | ❌ DENIED | Network isolation |
-| Public Zone → Service Zone | ✅ ALLOWED | Port 5001 only |
-| Public Zone → Protected Zone | ❌ DENIED | No network route |
-| Service Zone → Protected Zone | ✅ ALLOWED | Port 6379 only |
-
-### How Isolation Works
-
-**By Network Membership:**
-```
-protected-redis has ONLY ONE interface:
-  eth0: 172.20.30.3 (protected_net)
-
-It has NO interface on:
-  - public_net (172.20.10.x)
-  - service_net (172.20.20.x)
-
-Therefore: Traffic from those networks cannot reach it
-```
-
-**Multi-Homed Bridge Containers:**
-```
-public-nginx:
-  - eth0: 172.20.10.3 (public_net)
-  - eth1: 172.20.20.4 (service_net)
-  
-service-api:
-  - eth0: 172.20.20.3 (service_net)
-  - eth1: 172.20.30.4 (protected_net)
-```
-
-These containers route traffic between zones.
+| Scenario | Allowed Flow |
+|----------|--------------|
+| `baseline` | Host to public web only |
+| `service-open` | Public subnet to service API TCP/5001 |
+| `data-open` | Public subnet to service API TCP/5001, service API to Redis TCP/6379 |
+| `hardened` | Cross-zone traffic denied again |
 
 ## Deployment
 
-### Prerequisites
-- Docker Engine 20.10+
-- Docker Compose 2.0+
-
-### Start Testbed
 ```bash
 ./setup.sh up
-```
-
-### Run Tests
-```bash
+./scenario.sh status
 ./test.sh
+./demo.sh all
 ```
 
-### Stop Testbed
-```bash
-./setup.sh down
-```
-
-## Access Points
-
-| Endpoint | URL | Description |
-|----------|-----|-------------|
-| Public Web | http://localhost:8888 | Nginx web interface |
-| Public Probe | http://localhost:8888/api/probe/health | Zone identification |
-| Service API | http://localhost:8888/api/status | API via nginx proxy |
-
-## Extensibility
-
-Each zone is a separate Docker Compose project:
-- Add services by editing `zones/<zone>/docker-compose.yml`
-- Networks are shared via external references
-- New zones can be added with new subnets (e.g., 172.20.40.0/24)
+The static IP contract lives in `config/topology.yml`; run `./setup.sh render-config` to generate `.env.generated` for Compose.

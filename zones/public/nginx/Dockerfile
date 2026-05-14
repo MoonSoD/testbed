@@ -1,3 +1,5 @@
 FROM nginx:alpine
 
-COPY nginx.conf /etc/nginx/nginx.conf
+RUN apk add --no-cache iproute2 gettext
+
+COPY nginx.conf.template /etc/nginx/nginx.conf.template

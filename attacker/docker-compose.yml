@@ -1,0 +1,18 @@
+services:
+  kali-attacker:
+    build: .
+    container_name: kali-attacker
+    hostname: kali-attacker
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    networks:
+      public_net:
+        ipv4_address: ${KALI_ATTACKER_IP}
+    command: >
+      sh -c "ip route replace ${SERVICE_SUBNET} via ${PUBLIC_SERVICE_FW_PUBLIC_IP} && ip route del default && sleep infinity"
+
+networks:
+  public_net:
+    external: true
+    name: ${PUBLIC_NET_NAME}

@@ -1,0 +1,51 @@
+zones:
+  public:
+    network_name: testbed_public_net
+    subnet: 172.20.10.0/24
+    services:
+      web:
+        ip: 172.20.10.10
+        port: 80
+        host_port: 8888
+      probe:
+        ip: 172.20.10.11
+        port: 3000
+      attacker:
+        ip: 172.20.10.50
+
+  service:
+    network_name: testbed_service_net
+    subnet: 172.20.20.0/24
+    services:
+      api:
+        ip: 172.20.20.10
+        port: 5001
+      probe:
+        ip: 172.20.20.11
+        port: 3000
+
+  protected:
+    network_name: testbed_protected_net
+    subnet: 172.20.30.0/24
+    services:
+      redis:
+        ip: 172.20.30.10
+        port: 6379
+      probe:
+        ip: 172.20.30.11
+        port: 3000
+
+boundaries:
+  public_service:
+    name: public-service-fw
+    public_ip: 172.20.10.254
+    service_ip: 172.20.20.254
+    allowed_ports:
+      service_api: 5001
+
+  service_protected:
+    name: service-protected-fw
+    service_ip: 172.20.20.253
+    protected_ip: 172.20.30.254
+    allowed_ports:
+      redis: 6379

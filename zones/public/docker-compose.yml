@@ -2,15 +2,19 @@ services:
   nginx:
     build: ./nginx
     ports:
-      - "8888:80"
+      - "${PUBLIC_WEB_HOST_PORT}:80"
     networks:
-      - public_net
-      - service_net
+      public_net:
+        ipv4_address: ${PUBLIC_WEB_IP}
+    cap_add:
+      - NET_ADMIN
+    command: >
+      sh -c "ip route replace ${SERVICE_SUBNET} via ${PUBLIC_SERVICE_FW_PUBLIC_IP} && envsubst '$$PUBLIC_PROBE_IP $$PUBLIC_PROBE_PORT $$SERVICE_API_IP $$SERVICE_API_PORT' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
     environment:
-      - SERVICE_API_HOST=service-api
-      - SERVICE_API_PORT=5001
-      - PROBE_HOST=public-probe
-      - PROBE_PORT=3000
+      - PUBLIC_PROBE_IP=${PUBLIC_PROBE_IP}
+      - PUBLIC_PROBE_PORT=${PUBLIC_PROBE_PORT}
+      - SERVICE_API_IP=${SERVICE_API_IP}
+      - SERVICE_API_PORT=${SERVICE_API_PORT}
     depends_on:
       - probe
 
@@ -19,15 +23,17 @@ services:
     container_name: public-probe
     hostname: public-probe
     networks:
-      - public_net
+      public_net:
+        ipv4_address: ${PUBLIC_PROBE_IP}
+    cap_add:
+      - NET_ADMIN
+    command: >
+      sh -c "ip route replace ${SERVICE_SUBNET} via ${PUBLIC_SERVICE_FW_PUBLIC_IP} && npm start"
     environment:
       - ZONE_NAME=public
-      - PORT=3000
+      - PORT=${PUBLIC_PROBE_PORT}
 
 networks:
   public_net:
     external: true
-    name: testbed_public_net
-  service_net:
-    external: true
-    name: testbed_service_net
+    name: ${PUBLIC_NET_NAME}

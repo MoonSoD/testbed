@@ -12,11 +12,11 @@ http {
         }
 
         location /api/probe/ {
-            proxy_pass http://public-probe:3000/;
+            proxy_pass http://${PUBLIC_PROBE_IP}:${PUBLIC_PROBE_PORT}/;
         }
 
         location /api/ {
-            proxy_pass http://service-api:5001/;
+            proxy_pass http://${SERVICE_API_IP}:${SERVICE_API_PORT}/;
         }
     }
 }

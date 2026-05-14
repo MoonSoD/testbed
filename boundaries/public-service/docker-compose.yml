@@ -1,0 +1,24 @@
+services:
+  public-service-fw:
+    build: ../router
+    container_name: public-service-fw
+    hostname: public-service-fw
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    sysctls:
+      net.ipv4.ip_forward: "1"
+    networks:
+      public_net:
+        ipv4_address: ${PUBLIC_SERVICE_FW_PUBLIC_IP}
+      service_net:
+        ipv4_address: ${PUBLIC_SERVICE_FW_SERVICE_IP}
+    restart: unless-stopped
+
+networks:
+  public_net:
+    external: true
+    name: ${PUBLIC_NET_NAME}
+  service_net:
+    external: true
+    name: ${SERVICE_NET_NAME}

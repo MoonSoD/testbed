@@ -10,6 +10,7 @@ logs/
 # Environment
 .env
 .env.local
+.env.generated
 
 # IDE
 .vscode/

@@ -4,11 +4,15 @@ services:
     container_name: service-api
     hostname: service-api
     networks:
-      - service_net
-      - protected_net
+      service_net:
+        ipv4_address: ${SERVICE_API_IP}
+    cap_add:
+      - NET_ADMIN
+    command: >
+      sh -c "ip route replace ${PUBLIC_SUBNET} via ${PUBLIC_SERVICE_FW_SERVICE_IP} && ip route replace ${PROTECTED_SUBNET} via ${SERVICE_PROTECTED_FW_SERVICE_IP} && npm start"
     environment:
-      - REDIS_HOST=protected-redis
-      - REDIS_PORT=6379
+      - REDIS_HOST=${PROTECTED_REDIS_IP}
+      - REDIS_PORT=${PROTECTED_REDIS_PORT}
       - PROBE_HOST=service-probe
       - PROBE_PORT=3000
     depends_on:
@@ -19,7 +23,12 @@ services:
     container_name: service-probe
     hostname: service-probe
     networks:
-      - service_net
+      service_net:
+        ipv4_address: ${SERVICE_PROBE_IP}
+    cap_add:
+      - NET_ADMIN
+    command: >
+      sh -c "ip route replace ${PUBLIC_SUBNET} via ${PUBLIC_SERVICE_FW_SERVICE_IP} && ip route replace ${PROTECTED_SUBNET} via ${SERVICE_PROTECTED_FW_SERVICE_IP} && npm start"
     environment:
       - ZONE_NAME=service
       - PORT=3000
@@ -27,7 +36,4 @@ services:
 networks:
   service_net:
     external: true
-    name: testbed_service_net
-  protected_net:
-    external: true
-    name: testbed_protected_net
+    name: ${SERVICE_NET_NAME}
